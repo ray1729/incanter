@@ -37,6 +37,7 @@
            (cern.jet.stat.tdouble DoubleDescriptive
                                   Probability)
            (incanter Weibull))
+  (:require [clj-time.coerce :as ctime])
   (:use [clojure.set :only [difference intersection union]])
   (:use [incanter.core :only ($ abs plus minus div mult mmult to-list bind-columns
                               gamma pow sqrt diag trans regularized-beta ncol
@@ -2582,7 +2583,6 @@ Test for different variances between 2 samples
               {:col col :min (reduce min (remove nil? ($ col ds))) :max (reduce max (remove nil? ($ col ds))) 
                :mean (mean (remove nil? ($ col ds))) :median (median (remove nil? ($ col ds))) :is-numeric true}))
 
-
 (defn category-col-summarizer
   "Returns a summarizer function which takes a category column and returns a list of the top 5 columns by volume, and a 
    count of remaining rows"
@@ -2590,31 +2590,35 @@ Test for different variances between 2 samples
     (let [freqs (frequencies ($ col ds)) top-5 (take 5 (reverse (sort-by val freqs)))]
       (into {:col col :count (- (reduce + (map val freqs)) (reduce + (map val (into {} top-5)))) :is-numeric false} top-5))))
 
+(defn date-col-summarizer
+  "Returns a summarizer function that takes a column with DateTime values"
+  ([col ds]
+     (let [vs (map ctime/to-long (remove nil? ($ col ds)))]
+       {:col col :min (ctime/from-long (reduce min vs)) :max (ctime/from-long (reduce max vs))
+        :mean (ctime/from-long (long (mean vs))) :median (ctime/from-long (long (median vs))) :is-numeric false})))
 
 (defn choose-singletype-col-summarizer
   "Takes in a type, and returns a suitable column summarizer"
   ([col-type]
-    (if (.isAssignableFrom java.lang.Number col-type)
-        numeric-col-summarizer
-        (if (or (.isAssignableFrom java.lang.String col-type) (.isAssignableFrom clojure.lang.Keyword col-type))
-          category-col-summarizer
-          ; FIXME Deal with date columns
-          (str "Don't know how to summarize a column of type: " col-type)
-          ))))
-
+     (cond
+      (.isAssignableFrom java.lang.Number col-type) numeric-col-summarizer
+      (.isAssignableFrom java.lang.String col-type) category-col-summarizer
+      (.isAssignableFrom clojure.lang.Keyword col-type) category-col-summarizer
+      (.isAssignableFrom org.joda.time.DateTime col-type) date-col-summarizer
+      :else (str "Don't know how to summarize a column of type: " col-type))))
 
 (defn summarizer-fn 
   "Takes in a column (number or name) and a dataset. Returns a function to summarize the column if summarizable, and a 
    string describing why the column can't be summarized in the event that it can't"
   ([col ds]
-   (let [type-counts (dissoc (count-col-types col ds) nil)]
-    (if (= 1 (count type-counts))
-        (choose-singletype-col-summarizer (nth (keys type-counts) 0))
-        (if (every? #(.isAssignableFrom java.lang.Number %) (keys type-counts))
-            numeric-col-summarizer
-            (if (and (= 2 (count type-counts)) (contains? type-counts java.lang.String) (contains? type-counts clojure.lang.Keyword))
-                category-col-summarizer
-                (stat-summarizable type-counts)))))))
+     (let [type-counts (dissoc (count-col-types col ds) nil)]
+       (cond
+        (= 1 (count type-counts)) (choose-singletype-col-summarizer (nth (keys type-counts) 0))
+        (every? #(.isAssignableFrom java.lang.Number %) (keys type-counts)) numeric-col-summarizer
+        (and (= 2 (count type-counts)) (contains? type-counts java.lang.String) (contains? type-counts clojure.lang.Keyword)) category-col-summarizer
+        (every? #(.isAssignableFrom org.joda.time.DateTime %) (keys type-counts)) date-col-summarizer
+        :else (stat-summarizable type-counts)))))
+
 
 (defn summarizable?
   "Takes in a column name (or number) and a dataset. Returns true if the column can be summarized, and false otherwise"

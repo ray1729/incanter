@@ -6,7 +6,8 @@
                                org.clojure/clojure-contrib]]
                  [incanter/parallelcolt "0.9.4"
                   :exclusions [org.clojure/clojure
-                               org.clojure/clojure-contrib]]]
+                               org.clojure/clojure-contrib]]
+                 [clj-time "0.3.6"]]
   :dev-dependencies [[lein-clojars "0.7.0"
                       :exclusions [org.clojure/clojure
                                    org.clojure/clojure-contrib]]]

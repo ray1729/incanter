@@ -21,7 +21,8 @@
 
 (ns incanter.stats-tests
   (:use clojure.test 
-        (incanter core stats)))
+        (incanter core stats))
+  (:require [clj-time.core :as ct]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; UNIT TESTS FOR incanter.stats.clj
@@ -77,6 +78,8 @@
 
 (def summary-ds8 (to-dataset [["a"] ["b"] ["c"] ["d"] ["b"] ["e"] ["a"] ["b"] ["f"] ["a"] ["b"] ["e"]]))
 (def summary-ds9 (to-dataset [["a" 1.2] [":b" 3] [:c 0.1] ["d" 8] ["b" 9] ["e" 7.21] ["a" 1E1] ["b" 6.0000] ["f" 1e-2] ["a" 3.0] ["b" 4] ["e" 5]]))
+
+(def summary-ds10 (to-dataset (map #(ct/date-time 2012 02 %) (range 1 10))))
 
 
 (deftest mean-test
@@ -280,7 +283,15 @@
   (is (not (summarizable? 0 summary-ds5)))
   (is (not (summarizable? 0 summary-ds6)))
   (is (summarizable? 0 summary-ds7))
-  )
+  (is (summarizable? 0 summary-ds10)))
+
+(deftest summarize-date-column
+  (let [s (first (summary summary-ds10))]
+    (is (:min s) (ct/date-time 2012 02 1))
+    (is (:max s) (ct/date-time 2012 02 9))
+    (is (:mean s) (ct/date-time 2012 02 5))
+    (is (:median s) (ct/date-time 2012 02 5))
+    (is (not (:is-numeric? s)))))
 
 (deftest simple-p-value-test
   (testing "Basic p-value testing"

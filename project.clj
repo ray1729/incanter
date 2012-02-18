@@ -28,7 +28,8 @@
                  [swingrepl "1.3.0"
                   :exclusions [org.clojure/clojure
                                org.clojure/clojure-contrib]]
-                 [jline "0.9.94"]]
+                 [jline "0.9.94"]
+                 [clj-time "0.3.6"]]
   :dev-dependencies [[lein-clojars "0.7.0"
                       :exclusions [org.clojure/clojure
                                    org.clojure/clojure-contrib]]]
